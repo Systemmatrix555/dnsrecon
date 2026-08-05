@@ -1,5 +1,13 @@
 # Changelog
 
+## Unreleased
+
+### Fixed
+- Added missing `time` import so TLD brute force no longer raises `NameError` when estimating duration.
+- Included AAAA answers in search-engine result processing (`se_result_process`), matching the documented A/AAAA resolution behavior.
+- Improved crt.sh enumeration to parse SAN `name_value` fields, accept the apex domain, and de-star wildcard names instead of discarding them.
+- Fixed Yandex enumeration pagination so each request uses a distinct `p=` page parameter instead of repeating the same URL.
+
 ## [1.6.3] - 2026-06-29
 
 ### Changed
