@@ -29,7 +29,8 @@ def scrape_yandex(dom):
     Function for enumerating sub-domains and hosts by scraping Yandex.
     """
     results = []
-    searches = ['1', '2', '3', '4', '5', '10', '20', '30']
+    # Yandex uses 1-based page numbers via the p= query parameter.
+    pages = list(range(8))
 
     headers = {
         'User-Agent': (
@@ -40,14 +41,14 @@ def scrape_yandex(dom):
     }
 
     with httpx.Client(headers=headers) as client:
-        for _ in searches:
-            url = 'https://yandex.com/search/?text=site%3A' + dom
+        for page in pages:
+            url = f'https://yandex.com/search/?text=site%3A{dom}&p={page}'
             try:
                 response = client.get(url, timeout=10.0)
                 data = response.text
             except Exception as e:
                 logger.error(e)
-                return []
+                return unique(results)
 
             if re.search('enter_captcha_value', data):
                 logger.error("Yandex has detected the search as 'bot activity, stopping search...")
