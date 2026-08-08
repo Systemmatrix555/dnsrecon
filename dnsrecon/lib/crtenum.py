@@ -43,13 +43,45 @@ def is_transient_error(e: Exception) -> bool:
     return False
 
 
+def _crtsh_candidate_names(entry):
+    """
+    Yield hostname candidates from a crt.sh JSON entry.
+
+    crt.sh returns both common_name and name_value (SANs). name_value may
+    contain multiple names separated by newlines.
+    """
+    for key in ('common_name', 'name_value'):
+        raw = entry.get(key)
+        if not raw or not isinstance(raw, str):
+            continue
+        for name in raw.splitlines():
+            name = name.strip().lower().rstrip('.')
+            if name:
+                yield name
+
+
+def _crtsh_name_in_scope(name, dom):
+    """
+    Return a de-wildcarded hostname if it belongs to dom (or is dom itself).
+    """
+    if name.startswith('*.'):
+        logger.info(f'\t {name} wildcard')
+        name = name[2:]
+
+    if name == dom or name.endswith('.' + dom):
+        return name
+    return None
+
+
 @stamina.retry(on=is_transient_error, attempts=RETRY_ATTEMPTS, wait_max=WAIT_MAX)
 def scrape_crtsh(dom):
     """
     Function for enumerating subdomains by querying crt.sh JSON API.
     """
     results = []
+    seen = set()
     headers = {'User-Agent': random.choice(COMMON_USER_AGENTS)}
+    # Match both the apex and subdomains; %25 is URL-encoded '%'
     url = f'https://crt.sh/?q=%25.{dom}&output=json'
 
     resp = httpx.get(url, headers=headers, timeout=30)
@@ -65,17 +97,12 @@ def scrape_crtsh(dom):
         logger.error('Certificates for subdomains not found')
         return results
 
+    dom = dom.lower().rstrip('.')
     for entry in data:
-        sub_dom = entry.get('common_name')
-        if not sub_dom:
-            continue
-
-        if not sub_dom.endswith('.' + dom):
-            continue
-        if sub_dom.startswith('*.'):
-            logger.info(f'\t {sub_dom} wildcard')
-            continue
-        if sub_dom not in results:
-            results.append(sub_dom)
+        for candidate in _crtsh_candidate_names(entry):
+            host = _crtsh_name_in_scope(candidate, dom)
+            if host and host not in seen:
+                seen.add(host)
+                results.append(host)
 
     return results

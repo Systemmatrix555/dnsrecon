@@ -365,7 +365,7 @@ def test_se_result_process():
             ("AAAA", "zonetransfer.me", "2001:db8::1"),
         ]
         results = cli.se_result_process(mock_instance, "zonetransfer.me", ["zonetransfer.me"])
-        assert len(results) == 2
+        assert len(results) == 3
         assert results[0]['type'] == 'A'
         assert results[0]['name'] == 'zonetransfer.me'
         assert results[0]['domain'] == 'zonetransfer.me'
@@ -374,6 +374,27 @@ def test_se_result_process():
         assert results[1]['name'] == 'zonetransfer.me'
         assert results[1]['domain'] == 'zonetransfer.me'
         assert results[1]['target'] == 'some.domain.com'
+        assert results[2]['type'] == 'AAAA'
+        assert results[2]['name'] == 'zonetransfer.me'
+        assert results[2]['domain'] == 'zonetransfer.me'
+        assert results[2]['address'] == '2001:db8::1'
+
+
+def test_brute_tlds_uses_time_module_for_duration_estimate():
+    """TLD brute force must not crash with NameError on time (missing import)."""
+    res = MagicMock()
+    res.get_ip.return_value = []
+    fake_psl = 'com\nnet\norg\n'
+
+    with patch('dnsrecon.cli.httpx.get') as mock_get, \
+            patch('dnsrecon.cli.futures.ThreadPoolExecutor') as mock_executor:
+        mock_get.return_value.text = fake_psl
+        mock_executor.return_value.__enter__.return_value.submit = MagicMock()
+        mock_executor.return_value.__enter__.return_value.__exit__ = MagicMock(return_value=False)
+        with patch('dnsrecon.cli.futures.as_completed', return_value=[]):
+            result = cli.brute_tlds(res, 'example', verbose=False, thread_num=1)
+
+    assert result == []
 
 
 def test_get_spf_networks_recurses_includes_and_dedupes():

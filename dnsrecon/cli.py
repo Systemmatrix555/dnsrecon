@@ -23,6 +23,7 @@ import re
 import socket
 import sqlite3
 import sys
+import time
 from argparse import ArgumentError, ArgumentParser, RawTextHelpFormatter
 from concurrent import futures
 from pathlib import Path
@@ -816,13 +817,13 @@ def se_result_process(res, domain, se_entries):
     resolved_se_entries = []
     for se_entry in se_entries:
         for type_, name_, address_or_target_ in res.get_ip(se_entry):
-            if type_ not in ['A', 'CNAME']:
+            if type_ not in ['A', 'AAAA', 'CNAME']:
                 continue
 
             logger.info(f'\t {type_} {name_} {address_or_target_}')
             resolved_se_entry = {'type': type_, 'name': name_, 'domain': domain}
 
-            if type_ == 'A':
+            if type_ in ['A', 'AAAA']:
                 resolved_se_entry['address'] = address_or_target_
             elif type_ == 'CNAME':
                 resolved_se_entry['target'] = address_or_target_

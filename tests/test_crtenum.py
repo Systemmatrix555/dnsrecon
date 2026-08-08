@@ -13,9 +13,23 @@ def test_scrape_crtsh():
             {'common_name': 'subdomain2.example.com'},
             {'common_name': '*.example.com'},
             {'common_name': 'another.com'},
+            # SAN list may include the apex and additional names separated by newlines
+            {
+                'common_name': 'cdn.example.com',
+                'name_value': 'cdn.example.com\nwww.example.com\nexample.com\nother.org',
+            },
+            # Wildcard SAN should contribute the de-starred base name once
+            {'common_name': '', 'name_value': '*.api.example.com'},
         ]
         result = scrape_crtsh('example.com')
-        assert result == ['subdomain1.example.com', 'subdomain2.example.com']
+        assert result == [
+            'subdomain1.example.com',
+            'subdomain2.example.com',
+            'example.com',  # from de-starred *.example.com and/or apex SAN
+            'cdn.example.com',
+            'www.example.com',
+            'api.example.com',
+        ]
 
 
 def test_is_transient_error():
